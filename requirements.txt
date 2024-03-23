@@ -2,4 +2,4 @@ torch~=2.2.1
 Flask~=3.0.2
 flasgger~=0.9.7.1
 diffusers~=0.27.2
-requests~=2.31.0
+requests==2.31.0
