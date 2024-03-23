@@ -1,0 +1,31 @@
+API Endpoint: /process_image
+
+Supported HTTP Methods: POST
+
+Parameters:
+- image: File (required) - Pet image
+- prompt: String (required) - Text prompt
+
+Expected Responses:
+- HTTP Status Code: 200 OK
+  Content: JSON object with the following structure:
+  {
+    "processed_image": "<base64_encoded_image>"
+  }
+
+Example Request:
+POST /process_image
+Headers:
+  Content-Type: multipart/form-data
+Body:
+  - image: <binary_image_data>
+  - prompt: "Your text prompt here"
+
+Example Response:
+HTTP/1.1 200 OK
+Content-Type: application/json
+Body:
+{
+  "processed_image": "<base64_encoded_image>"
+}
+
