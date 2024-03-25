@@ -16,6 +16,7 @@ swagger = Swagger(app, template_file='swagger.yml')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = StableDiffusionXLPipeline.from_pretrained("segmind/SSD-1B").to(device)
 
+
 def preprocess_image(image_data):
     # Преобразование байтов изображения в объект PIL.Image
     image = Image.open(BytesIO(image_data))
