@@ -1,78 +1,58 @@
 import base64
-from io import BytesIO
+import io
 from flask import Flask, request, jsonify
-from flask_restful import Api, Resource
 from flasgger import Swagger
-import torch
-from diffusers import StableDiffusionXLPipeline
 from PIL import Image
-import torchvision.transforms as transforms
+from diffusers import StableDiffusionInstructPix2PixPipeline, EulerAncestralDiscreteScheduler
+import torch
 
 app = Flask(__name__)
-api = Api(app)
-swagger = Swagger(app, template_file='swagger.yml')
+swagger = Swagger(app)
 
-# Load Stable Diffusion model
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = StableDiffusionXLPipeline.from_pretrained("segmind/SSD-1B").to(device)
-
-
-def preprocess_image(image_data):
-    # Преобразование байтов изображения в объект PIL.Image
-    image = Image.open(BytesIO(image_data))
-
-    # Применение необходимых преобразований
-    preprocess = transforms.Compose([
-        transforms.Resize(256),  # Масштабирование изображения до 256x256
-        transforms.CenterCrop(224),  # Обрезка изображения до 224x224 по центру
-        transforms.ToTensor(),  # Преобразование изображения в тензор
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Нормализация значений пикселей
-    ])
-
-    # Применение преобразований к изображению
-    return preprocess(image).unsqueeze(0)  # Добавление размерности пакета
-
-class ProcessImage(Resource):
-    def post(self):
-        """
-        Process Image.
-
-        ---
-        parameters:
-          - name: image
-            in: formData
-            type: file
-            required: true
-            description: Pet image
-          - name: prompt
-            in: formData
-            type: string
-            required: true
-            description: Text prompt
-        responses:
-          200:
-            description: Processed image
-        """
-        # Получаем данные изображения и текстовый промпт из запроса
-        image_data = request.files['image'].read()
-        prompt = request.form['prompt']
-
-        # Преобразуем данные изображения в тензор
-        image_tensor = preprocess_image(image_data).to(device)
-
-        # Process image using Stable Diffusion model
-        with torch.no_grad():
-            # Обработка изображения с использованием модели
-            processed_image = model(prompt=prompt, image=image_tensor).images[0]
-
-        # Возвращение обработанного изображения в формате base64
-        buffered = BytesIO()
-        processed_image.save(buffered, format="JPEG")
-        processed_image_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-        return jsonify({'processed_image': processed_image_base64})
+# Load the model
+model_id = "timbrooks/instruct-pix2pix"
+pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(model_id, torch_dtype=torch.float16, safety_checker=None)
+pipe.to("gpu")
+pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
 
 
-api.add_resource(ProcessImage, '/api/main')
+def process_image(image, prompt):
+    # Process the image using the model
+    images = pipe(prompt, image=image, num_inference_steps=10, image_guidance_scale=1).images
+
+    # Convert the resulting image to base64
+    buffered = io.BytesIO()
+    images[0].save(buffered, format="PNG", dpi=(3000, 3000))
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+
+@app.route('/process_image', methods=['POST'])
+def upload_image():
+    """
+    Process an image with a given prompt.
+    ---
+    parameters:
+      - name: image
+        in: formData
+        type: file
+        required: true
+        description: The image file to process.
+      - name: prompt
+        in: formData
+        type: string
+        required: true
+        description: The prompt for image processing.
+    responses:
+        200:
+            description: Processed image.
+    """
+    image_file = request.files['image']
+    image = Image.open(image_file)
+    prompt = request.form['prompt']
+
+    result_image_base64 = process_image(image, prompt)
+    return jsonify({'processed_image': result_image_base64})
+
 
 if __name__ == '__main__':
-    app.run(debug=True, port=3000, host="127.0.0.1")
+    app.run(debug=True)
