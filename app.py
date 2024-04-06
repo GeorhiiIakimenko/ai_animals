@@ -12,7 +12,8 @@ swagger = Swagger(app)
 # Load the model
 model_id = "timbrooks/instruct-pix2pix"
 pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(model_id, torch_dtype=torch.float16, safety_checker=None)
-pipe.to("gpu")
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+pipe.to(DEVICE)
 pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
 
 
