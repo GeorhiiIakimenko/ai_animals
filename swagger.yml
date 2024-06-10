@@ -1,0 +1,31 @@
+swagger: '2.0'
+info:
+  title: Pet Image Processing API
+  description: API for processing pet images using Stable Diffusion model
+  version: '1.0'
+paths:
+  /process_image:
+    post:
+      summary: Process Image
+      consumes:
+        - multipart/form-data
+      parameters:
+        - in: formData
+          name: image
+          type: file
+          required: true
+          description: Pet image
+        - in: formData
+          name: prompt
+          type: string
+          required: true
+          description: Text prompt
+      responses:
+        '200':
+          description: Processed image
+          schema:
+            type: object
+            properties:
+              processed_image:
+                type: string
+                format: binary
